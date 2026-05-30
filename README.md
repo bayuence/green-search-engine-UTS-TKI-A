@@ -87,4 +87,4 @@ Buka `Tugas_Lanjutan_Mini_Search_Engine.ipynb`, lalu jalankan seluruh sel (**Run
 | Bayu Nurcahyo | 3012310007 |
 | Ari Setia Hinanda | 3012310005 |
 
-Teknik Informatika — Universitas Internasional Semen Indonesia · Temu Kembali Informasi 2025
+Teknik Informatika — Universitas Internasional Semen Indonesia · Temu Kembali Informasi 2026
