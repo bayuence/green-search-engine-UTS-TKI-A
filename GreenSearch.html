@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GreenSearch — Sistem Temu Kembali Informasi</title>
+<meta name="description" content="Mini Search Engine berbasis TF-IDF dan Vector Space Model untuk dokumen Green Economy & Pembangunan Berkelanjutan.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+<div class="layout">
+
+<!-- ────────── SIDEBAR ────────── -->
+<aside class="sidebar">
+
+  <div class="sidebar-brand">
+    <div class="brand-icon">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"/>
+      </svg>
+    </div>
+    <div class="brand-text">
+      <div class="brand-name">GreenSearch</div>
+      <div class="brand-sub">Temu Kembali Informasi</div>
+    </div>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="nav-label">Menu Utama</div>
+    <div class="nav-item active" onclick="switchTab('search')">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"/></svg>
+      Mesin Pencari
+    </div>
+    <div class="nav-item" onclick="switchTab('index')">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M4 12h10M4 17h7"/></svg>
+      Inverted Index
+    </div>
+    <div class="nav-item" onclick="switchTab('bobot')">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"/></svg>
+      Analisis Bobot
+    </div>
+    <div class="nav-item" onclick="switchTab('norm')">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+      Efek Normalisasi
+    </div>
+    <div class="nav-item" onclick="switchTab('eval')">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      Evaluasi Sistem
+    </div>
+  </nav>
+
+  <div class="sidebar-stats">
+    <div class="stats-title">Statistik Koleksi</div>
+    <div class="stat-row"><span class="stat-key">Dokumen</span><span class="stat-val">50</span></div>
+    <div class="stat-row"><span class="stat-key">Vocabulary</span><span class="stat-val">325</span></div>
+    <div class="stat-row"><span class="stat-key">Posting Entries</span><span class="stat-val">767</span></div>
+    <div class="stat-row"><span class="stat-key">Sumber Artikel</span><span class="stat-val">4</span></div>
+    <div class="stat-row"><span class="stat-key">Algoritma Stem</span><span class="stat-val">Nazief-Adriani</span></div>
+    <div class="stat-row"><span class="stat-key">Pembobotan TF</span><span class="stat-val">log₁₀</span></div>
+  </div>
+
+  <div class="sidebar-pipeline">
+    <div class="stats-title">Pipeline Pre-processing</div>
+    <div class="pipeline-step-item"><div class="step-num-small">1</div><div class="step-info-small"><strong>Case Folding</strong><span>Konversi ke huruf kecil</span></div></div>
+    <div class="pipeline-step-item"><div class="step-num-small">2</div><div class="step-info-small"><strong>Remove Punctuation</strong><span>Hapus tanda baca & angka</span></div></div>
+    <div class="pipeline-step-item"><div class="step-num-small">3</div><div class="step-info-small"><strong>Stop-word Removal</strong><span>Sastrawi (809 kata)</span></div></div>
+    <div class="pipeline-step-item"><div class="step-num-small">4</div><div class="step-info-small"><strong>Stemming</strong><span>PySastrawi Nazief-Adriani</span></div></div>
+    <div class="pipeline-step-item"><div class="step-num-small">5</div><div class="step-info-small"><strong>TF Weighting</strong><span>1 + log₁₀(tf)</span></div></div>
+    <div class="pipeline-step-item"><div class="step-num-small">6</div><div class="step-info-small"><strong>IDF Weighting</strong><span>log₁₀(N / df)</span></div></div>
+    <div class="pipeline-step-item"><div class="step-num-small">7</div><div class="step-info-small"><strong>VSM + CosSim</strong><span>L2 Normalization</span></div></div>
+  </div>
+
+  <div class="sidebar-meta">
+    <div class="meta-line">
+      <strong>Kelompok:</strong><br>
+      Bayu Nurcahyo — 3012310007<br>
+      Ari Setia Hinanda — 3012310005
+    </div>
+    <div class="meta-line" style="margin-top:8px;">
+      <strong>Program Studi:</strong><br>
+      Teknik Informatika — UISI<br>
+      Semester 6, 2025
+    </div>
+  </div>
+
+</aside>
+
+<!-- ────────── MAIN ────────── -->
+<div class="main">
+
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="topbar-title">Green Economy & Pembangunan Berkelanjutan — Koleksi 50 Dokumen</div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span class="topbar-meta">TF-IDF · VSM · Cosine Similarity</span>
+      <span class="topbar-badge">Tugas Lanjutan TKI</span>
+    </div>
+  </div>
+
+  <!-- Page Header -->
+  <div class="page-header">
+    <div class="breadcrumb">
+      Temu Kembali Informasi
+      <span>/</span>
+      Tugas Lanjutan — Mini Search Engine
+    </div>
+    <div class="page-title">Sistem Temu Kembali Informasi</div>
+    <div class="page-desc">
+      Implementasi mesin pencari mini berbasis pembobotan TF-IDF dengan Log Frequency Weighting,
+      Vector Space Model, dan Cosine Similarity untuk koleksi dokumen bertopik Green Economy Indonesia.
+    </div>
+  </div>
+
+  <!-- Stats Bar -->
+  <div class="stats-bar">
+    <div class="stat-block">
+      <div class="stat-block-num">50</div>
+      <div class="stat-block-label">Total Dokumen</div>
+    </div>
+    <div class="stat-block">
+      <div class="stat-block-num">325</div>
+      <div class="stat-block-label">Vocabulary Unik</div>
+    </div>
+    <div class="stat-block">
+      <div class="stat-block-num">767</div>
+      <div class="stat-block-label">Posting Entries</div>
+    </div>
+    <div class="stat-block">
+      <div class="stat-block-num">4</div>
+      <div class="stat-block-label">Sumber Artikel</div>
+    </div>
+  </div>
+
+  <!-- Tab Navigation -->
+  <div class="tab-nav">
+    <div class="tab-nav-item active" onclick="switchTab('search')">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"/></svg>
+      Mesin Pencari
+    </div>
+    <div class="tab-nav-item" onclick="switchTab('index')">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M4 12h10M4 17h7"/></svg>
+      Inverted Index
+    </div>
+    <div class="tab-nav-item" onclick="switchTab('bobot')">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"/></svg>
+      Analisis Bobot
+    </div>
+    <div class="tab-nav-item" onclick="switchTab('norm')">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+      Efek Normalisasi
+    </div>
+    <div class="tab-nav-item" onclick="switchTab('eval')">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      Evaluasi Sistem
+    </div>
+  </div>
+
+  <!-- CONTENT -->
+  <div class="content">
+
+    <!-- TAB: SEARCH -->
+    <div id="tab-search" class="tab-panel active">
+
+      <div class="search-section">
+        <div style="font-size:0.73rem;font-weight:600;color:#5a5a64;margin-bottom:7px;text-transform:uppercase;letter-spacing:0.04em;">Masukkan Kueri Pencarian</div>
+        <div class="search-bar">
+          <input type="text" id="query-input"
+            placeholder="Contoh: kebijakan ekonomi hijau indonesia ..."
+            onkeydown="if(event.key==='Enter') doSearch()">
+          <button class="btn-primary" onclick="doSearch()">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"/></svg>
+            Cari
+          </button>
+        </div>
+        <div class="quick-queries">
+          <span class="ql">Contoh kueri:</span>
+          <button class="btn-secondary" onclick="setQuery('kebijakan ekonomi hijau indonesia')">kebijakan ekonomi hijau indonesia</button>
+          <button class="btn-secondary" onclick="setQuery('pertanian berkelanjutan energi terbarukan')">pertanian berkelanjutan energi terbarukan</button>
+          <button class="btn-secondary" onclick="setQuery('emisi karbon lingkungan hidup')">emisi karbon lingkungan hidup</button>
+          <button class="btn-secondary" onclick="setQuery('implementasi green economy pembangunan')">implementasi green economy</button>
+        </div>
+      </div>
+
+      <!-- Process Trail -->
+      <div class="process-trail" id="process-trail">
+        <div class="trail-header">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+          Log Preprocessing Query
+        </div>
+        <div class="trail-body">
+          <div class="trail-row"><span class="trail-step-label">Input query</span><div class="trail-tokens" id="trail-raw"></div></div>
+          <div class="trail-row"><span class="trail-step-label">Tokenisasi</span><div class="trail-tokens" id="trail-tokens"></div></div>
+          <div class="trail-row"><span class="trail-step-label">Stop-word removed</span><div class="trail-tokens" id="trail-nosw"></div></div>
+          <div class="trail-row"><span class="trail-step-label">Setelah stemming</span><div class="trail-tokens" id="trail-stem"></div></div>
+        </div>
+      </div>
+
+      <!-- Results -->
+      <div class="results-header">
+        <span class="results-heading">Hasil Pencarian <span id="results-count" style="color:#4a4a54;font-weight:400;"></span></span>
+        <span class="results-meta" id="norm-label"></span>
+      </div>
+      <div id="results-container">
+        <div class="empty-state">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"/></svg>
+          <h3>Ketik kueri untuk memulai pencarian</h3>
+          <p>Sistem mendukung query Bahasa Indonesia dengan stemming Nazief-Adriani</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB: INVERTED INDEX -->
+    <div id="tab-index" class="tab-panel">
+      <div class="section-header">
+        <h2>Inverted Index</h2>
+        <p>Struktur data inti search engine. Setiap term dipetakan ke posting list berisi dokumen yang mengandungnya beserta posisi dan frekuensi kemunculan.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h3>Konsep Inverted Index</h3>
+        </div>
+        <p style="font-size:0.76rem;color:#5a5a64;line-height:1.7;margin-bottom:8px;">
+          Inverted Index memetakan setiap <strong style="color:#a0a0a8;">term</strong> ke <strong style="color:#a0a0a8;">posting list</strong> — 
+          daftar dokumen yang mengandung term tersebut beserta posisi kemunculannya.
+          Memungkinkan pencarian yang sangat efisien O(1) per term.
+        </p>
+        <div class="formula-block">
+          <span class="comment">// Struktur data</span><br>
+          { <span class="kw">term</span> <span class="op">→</span> { <span class="kw">df</span>: int, <span class="kw">postings</span>: { doc_id: [pos1, pos2, ...] } } }<br><br>
+          <span class="comment">// Contoh</span><br>
+          <span class="val">"ekonomi"</span> <span class="op">→</span> { df: <span class="val">33</span>, postings: { D1:[2], D3:[1,5], D6:[0,3,7], ... } }<br>
+          <span class="val">"fiskal"</span>  <span class="op">→</span> { df:  <span class="val">6</span>, postings: { D10:[1], D11:[0], D20:[3], ... } }
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div>
+          <div class="card">
+            <div class="card-header">
+              <h3>Top 10 Term — Document Frequency Tertinggi</h3>
+            </div>
+            <div id="top-terms-table"></div>
+          </div>
+        </div>
+        <div>
+          <div class="card">
+            <div class="card-header">
+              <h3>Cari Detail Term</h3>
+            </div>
+            <input class="input-sm" id="idx-search" placeholder="Ketik kata (contoh: ekonomi, hijau, fiskal...)" oninput="searchIndex(this.value)" style="margin-bottom:8px;">
+            <div id="idx-detail">
+              <p style="font-size:0.73rem;color:#4a4a54;">Ketik kata di atas untuk melihat detail posting list, TF, IDF, dan TF-IDF per dokumen.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB: ANALISIS BOBOT -->
+    <div id="tab-bobot" class="tab-panel">
+      <div class="section-header">
+        <h2>Analisis Bobot</h2>
+        <p>Perhitungan manual nilai IDF untuk 2 kata kunci dari topik Green Economy. N = 50 dokumen.</p>
+      </div>
+
+      <div class="grid-2">
+        <!-- Kata 1 -->
+        <div class="card">
+          <div class="card-header">
+            <h3>Kata Kunci 1: "ekonomi"</h3>
+          </div>
+          <div class="formula-block">
+            <span class="comment">// Langkah 1: Identifikasi Document Frequency</span><br>
+            <span class="kw">term</span>    = <span class="val">"ekonomi"</span><br>
+            <span class="kw">df</span>      = <span class="val">33</span>  <span class="comment">// muncul di 33 dari 50 dokumen</span><br>
+            <span class="kw">N</span>       = <span class="val">50</span>  <span class="comment">// total dokumen</span><br><br>
+            <span class="comment">// Langkah 2: Hitung IDF</span><br>
+            <span class="kw">IDF</span>     = log₁₀(<span class="kw">N</span> / <span class="kw">df</span>)<br>
+                    = log₁₀(<span class="val">50</span> / <span class="val">33</span>)<br>
+                    = log₁₀(<span class="val">1.5152</span>)<br>
+                    = <span class="op">0.1805</span>  <span class="comment">← IDF rendah</span>
+          </div>
+          <div class="grid-3" style="margin-top:8px;">
+            <div class="metric-block yellow">
+              <div class="metric-block-label">Document Freq</div>
+              <div class="metric-block-val">33</div>
+              <div class="metric-block-sub">dari 50 dok</div>
+            </div>
+            <div class="metric-block">
+              <div class="metric-block-label">N / df</div>
+              <div class="metric-block-val" style="color:#a0a0a8;">1.52</div>
+              <div class="metric-block-sub">rasio</div>
+            </div>
+            <div class="metric-block">
+              <div class="metric-block-label">IDF</div>
+              <div class="metric-block-val" style="color:#b5a58a;">0.1805</div>
+              <div class="metric-block-sub">bobot rendah</div>
+            </div>
+          </div>
+          <div class="note-box warn" style="margin-top:8px;">
+            <strong>Kata umum — IDF rendah.</strong> Muncul di 66% dokumen. Tidak mampu membedakan dokumen secara spesifik. Diskriminator lemah.
+          </div>
+        </div>
+
+        <!-- Kata 2 -->
+        <div class="card">
+          <div class="card-header">
+            <h3>Kata Kunci 2: "fiskal"</h3>
+          </div>
+          <div class="formula-block">
+            <span class="comment">// Langkah 1: Identifikasi Document Frequency</span><br>
+            <span class="kw">term</span>    = <span class="val">"fiskal"</span><br>
+            <span class="kw">df</span>      = <span class="val">6</span>   <span class="comment">// muncul di 6 dari 50 dokumen</span><br>
+            <span class="kw">N</span>       = <span class="val">50</span>  <span class="comment">// total dokumen</span><br><br>
+            <span class="comment">// Langkah 2: Hitung IDF</span><br>
+            <span class="kw">IDF</span>     = log₁₀(<span class="kw">N</span> / <span class="kw">df</span>)<br>
+                    = log₁₀(<span class="val">50</span> / <span class="val">6</span>)<br>
+                    = log₁₀(<span class="val">8.3333</span>)<br>
+                    = <span class="op">0.9208</span>  <span class="comment">← IDF tinggi</span>
+          </div>
+          <div class="grid-3" style="margin-top:8px;">
+            <div class="metric-block green">
+              <div class="metric-block-label">Document Freq</div>
+              <div class="metric-block-val">6</div>
+              <div class="metric-block-sub">dari 50 dok</div>
+            </div>
+            <div class="metric-block">
+              <div class="metric-block-label">N / df</div>
+              <div class="metric-block-val" style="color:#a0a0a8;">8.33</div>
+              <div class="metric-block-sub">rasio</div>
+            </div>
+            <div class="metric-block blue">
+              <div class="metric-block-label">IDF</div>
+              <div class="metric-block-val">0.9208</div>
+              <div class="metric-block-sub">bobot tinggi</div>
+            </div>
+          </div>
+          <div class="note-box green" style="margin-top:8px;">
+            <strong>Kata langka — IDF tinggi.</strong> Muncul di 12% dokumen. Sangat spesifik dan mengidentifikasi dokumen tertentu. Diskriminator kuat.
+          </div>
+        </div>
+      </div>
+
+      <hr class="divider">
+
+      <!-- Tabel Perbandingan -->
+      <div class="card">
+        <div class="card-header">
+          <h3>Tabel Perbandingan IDF</h3>
+        </div>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Parameter</th>
+              <th>ekonomi</th>
+              <th>fiskal</th>
+              <th>Keterangan</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>N (total dokumen)</td><td class="mono">50</td><td class="mono">50</td><td class="text-muted text-small">Koleksi tetap</td></tr>
+            <tr><td>df (document frequency)</td><td class="mono" style="color:#b5a58a;">33</td><td class="mono" style="color:#7a9b8a;">6</td><td class="text-muted text-small">Jumlah dok mengandung term</td></tr>
+            <tr><td>N / df</td><td class="mono">1.5152</td><td class="mono">8.3333</td><td class="text-muted text-small">Semakin besar = semakin langka</td></tr>
+            <tr><td>IDF = log₁₀(N/df)</td><td class="mono" style="color:#b5a58a;">0.1805</td><td class="mono" style="color:#8a9bb5;">0.9208</td><td class="text-muted text-small">Selisih 0.74</td></tr>
+            <tr><td>Kategori</td><td><span class="badge badge-yellow">Umum</span></td><td><span class="badge badge-blue">Langka</span></td><td class="text-muted text-small">Berdasarkan frekuensi</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- IDF Bar Chart -->
+      <div class="card">
+        <div class="card-header">
+          <h3>Distribusi IDF — Top 18 Term</h3>
+        </div>
+        <div id="idf-bars"></div>
+      </div>
+
+      <!-- Penjelasan -->
+      <div class="card">
+        <div class="card-header">
+          <h3>Penjelasan Konseptual</h3>
+        </div>
+        <p style="font-size:0.8rem;color:#5a5a64;line-height:1.75;">
+          IDF (Inverse Document Frequency) dirancang untuk memberikan <strong style="color:#a0a0a8;">bobot tinggi</strong> pada term yang 
+          <strong style="color:#a0a0a8;">langka</strong> dan <strong style="color:#a0a0a8;">bobot rendah</strong> pada term yang 
+          <strong style="color:#a0a0a8;">umum</strong>.
+        </p>
+        <div class="grid-2" style="margin-top:10px;">
+          <div>
+            <p style="font-size:0.73rem;color:#7a7a84;margin-bottom:4px;font-weight:600;">Alasan Matematis</p>
+            <div class="formula-block" style="font-size:0.7rem;">
+              <span class="comment">// Term umum (df tinggi)</span><br>
+              N/df ≈ 1  →  log₁₀(1) = <span class="val">0</span>  →  IDF rendah<br><br>
+              <span class="comment">// Term langka (df rendah)</span><br>
+              N/df >> 1  →  log₁₀(besar) = <span class="val">tinggi</span>
+            </div>
+          </div>
+          <div>
+            <p style="font-size:0.73rem;color:#7a7a84;margin-bottom:4px;font-weight:600;">Alasan Logis (Information Theory)</p>
+            <div class="formula-block" style="font-size:0.7rem;">
+              <span class="comment">// Shannon: self-information</span><br>
+              I(x) = <span class="op">-log</span> P(x)<br><br>
+              Kejadian langka → P rendah<br>
+              → I(x) tinggi  →  informasi lebih banyak
+            </div>
+          </div>
+        </div>
+        <div class="note-box" style="margin-top:10px;">
+          <strong>Prinsip inti IDF:</strong> "The rarer the term, the more informative it is." Kata yang jarang muncul
+          dalam koleksi dokumen mengandung informasi lebih spesifik dan mampu membedakan (mendiskriminasi)
+          dokumen satu dari lainnya dengan lebih kuat. IDF secara matematis mengimplementasikan prinsip ini.
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB: NORMALISASI -->
+    <div id="tab-norm" class="tab-panel">
+      <div class="section-header">
+        <h2>Analisis Efek Normalisasi</h2>
+        <p>Perbandingan hasil pencarian dengan dan tanpa Cosine Normalization. Kaitan dengan Vector Space Model.</p>
+      </div>
+
+      <div class="card" style="margin-bottom:12px;">
+        <div class="card-header">
+          <h3>Kueri Pengujian: "kebijakan ekonomi hijau indonesia"</h3>
+        </div>
+        <div class="grid-2">
+          <div class="compare-panel">
+            <div class="compare-panel-header" style="color:#b58a8a;">
+              Tanpa Normalisasi — Dot Product
+            </div>
+            <div class="compare-panel-body" id="norm-bad-results"></div>
+          </div>
+          <div class="compare-panel">
+            <div class="compare-panel-header" style="color:#7a9b8a;">
+              Dengan Normalisasi — Cosine Similarity
+            </div>
+            <div class="compare-panel-body" id="norm-good-results"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header">
+            <h3>Masalah Tanpa Normalisasi</h3>
+          </div>
+          <p style="font-size:0.76rem;color:#5a5a64;line-height:1.7;margin-bottom:8px;">
+            Dalam VSM, skor relevansi dihitung sebagai dot product antara vektor query dan vektor dokumen.
+            Dokumen panjang secara otomatis memiliki nilai TF-IDF akumulatif yang lebih besar.
+          </p>
+          <div class="formula-block" style="font-size:0.7rem;">
+            Score(q, d) = <span class="op">Σ</span> w(t, q) <span class="op">×</span> w(t, d)<br><br>
+            Dokumen panjang → banyak term → <span class="comment">Σ w besar</span><br>
+            Dokumen pendek  → sedikit term → <span class="comment">Σ w kecil</span><br>
+            → <span class="comment">BIAS terhadap panjang dokumen!</span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <h3>Solusi: Cosine Normalization</h3>
+          </div>
+          <p style="font-size:0.76rem;color:#5a5a64;line-height:1.7;margin-bottom:8px;">
+            Cosine Similarity membagi dot product dengan norma L2 kedua vektor, memproyeksikannya
+            ke unit sphere. Skor hanya bergantung pada sudut antar vektor, bukan panjangnya.
+          </p>
+          <div class="formula-block" style="font-size:0.7rem;">
+            CosSim(q, d) = <span class="op">(q · d)</span> / <span class="op">(||q|| × ||d||)</span><br><br>
+            ||v|| = <span class="op">√</span>(<span class="op">Σ</span> v_i²)  <span class="comment">// norma L2</span><br>
+            → Semua vektor berunit length = 1<br>
+            → <span class="val">Perbandingan adil, bebas bias panjang</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h3>Analogi Praktis</h3>
+        </div>
+        <p style="font-size:0.76rem;color:#5a5a64;line-height:1.75;">
+          Bayangkan dua artikel membahas topik yang sama:<br>
+          Artikel A: 1.000 kata, menyebut "ekonomi hijau" sebanyak <strong style="color:#a0a0a8;">10 kali</strong><br>
+          Artikel B: 100 kata, menyebut "ekonomi hijau" sebanyak <strong style="color:#a0a0a8;">5 kali</strong>
+        </p>
+        <div class="grid-2" style="margin-top:8px;">
+          <div class="metric-block">
+            <div class="metric-block-label">Tanpa Normalisasi</div>
+            <div class="metric-block-val" style="color:#b58a8a;">A Menang</div>
+            <div class="metric-block-sub">10 > 5 (raw count)</div>
+          </div>
+          <div class="metric-block green">
+            <div class="metric-block-label">Dengan Normalisasi</div>
+            <div class="metric-block-val">B Menang</div>
+            <div class="metric-block-sub">5/100 = 5% > 10/1000 = 1%</div>
+          </div>
+        </div>
+        <div class="note-box green" style="margin-top:8px;">
+          <strong>Kesimpulan:</strong> Artikel B lebih spesifik membahas topik tersebut (5% dari kontennya), 
+          meski secara absolut menyebut lebih sedikit. Normalisasi mengungkap relevansi sesungguhnya.
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB: EVALUASI -->
+    <div id="tab-eval" class="tab-panel">
+      <div class="section-header">
+        <h2>Evaluasi Sistem</h2>
+        <p>Skenario pengujian dengan 2 kueri. Ground truth ditetapkan berdasarkan penilaian manual kelompok. Hitung Precision, Recall, dan F-Measure.</p>
+      </div>
+
+      <div class="card" style="margin-bottom:12px;">
+        <div class="card-header">
+          <h3>Formula Metrik Evaluasi IR</h3>
+        </div>
+        <div class="grid-3">
+          <div>
+            <div class="formula-block" style="font-size:0.7rem;">
+              <span class="kw">Precision</span> = <span class="op">TP</span> / (<span class="op">TP + FP</span>)<br><br>
+              <span class="comment">// Dari yang diambil sistem,</span><br>
+              <span class="comment">// berapa yang benar-benar relevan?</span>
+            </div>
+          </div>
+          <div>
+            <div class="formula-block" style="font-size:0.7rem;">
+              <span class="kw">Recall</span> = <span class="op">TP</span> / (<span class="op">TP + FN</span>)<br><br>
+              <span class="comment">// Dari semua yang relevan,</span><br>
+              <span class="comment">// berapa yang berhasil ditemukan?</span>
+            </div>
+          </div>
+          <div>
+            <div class="formula-block" style="font-size:0.7rem;">
+              <span class="kw">F-Measure</span> = 2·P·R / (P+R)<br><br>
+              <span class="comment">// Harmonik mean antara</span><br>
+              <span class="comment">// Precision dan Recall</span>
+            </div>
+          </div>
+        </div>
+        <p style="font-size:0.7rem;color:#4a4a54;margin-top:6px;">
+          TP = True Positive (relevan &amp; ditemukan) &nbsp;|&nbsp; 
+          FP = False Positive (tidak relevan, ikut diambil) &nbsp;|&nbsp; 
+          FN = False Negative (relevan, tidak ditemukan)
+        </p>
+      </div>
+
+      <div id="eval-results"></div>
+
+      <div class="card">
+        <div class="card-header">
+          <h3>Ringkasan Evaluasi — Rata-rata 2 Kueri</h3>
+        </div>
+        <div class="grid-3" style="margin-bottom:12px;">
+          <div class="metric-block green">
+            <div class="metric-block-label">Avg. Precision</div>
+            <div class="metric-block-val" id="avg-p">—</div>
+            <div class="metric-block-sub">P@10, 2 kueri</div>
+          </div>
+          <div class="metric-block blue">
+            <div class="metric-block-label">Avg. Recall</div>
+            <div class="metric-block-val" id="avg-r">—</div>
+            <div class="metric-block-sub">R@10, 2 kueri</div>
+          </div>
+          <div class="metric-block purple">
+            <div class="metric-block-label">Avg. F-Measure</div>
+            <div class="metric-block-val" id="avg-f">—</div>
+            <div class="metric-block-sub">F@10, 2 kueri</div>
+          </div>
+        </div>
+        <div class="note-box">
+          <strong>Trade-off Precision vs Recall:</strong> Dalam sistem IR, terdapat trade-off inherent antara Precision dan Recall.
+          Meningkatkan nilai top-K akan meningkatkan Recall (lebih banyak dokumen relevan ditemukan) tetapi menurunkan Precision
+          (lebih banyak dokumen tidak relevan ikut masuk). F-Measure sebagai harmonik mean membantu menemukan titik keseimbangan optimal.
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+</div><!-- /layout -->
+
+<script src="assets/js/app.js"></script>
+</body>
+</html>
