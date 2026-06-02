@@ -235,14 +235,18 @@ function stem(w) { return stemmer.stem(w); }
 
 // ────────────────────────────────────────────────────────────────────────
 //  4. TEXT PREPROCESSING
+//     Pipeline: Case Folding → Remove Punct → Tokenize → Stopword → Stem
 // ────────────────────────────────────────────────────────────────────────
 function cleanText(t) {
+  // Case folding + hapus angka + hapus tanda baca + trim multiple spaces
   return t.toLowerCase().replace(/\d+/g,'').replace(/[^a-z\s]/g,' ').replace(/\s+/g,' ').trim();
 }
 function tokenize(t) {
+  // Split kata, filter panjang min 3 char, buang stopwords
   return cleanText(t).split(' ').filter(w => w.length > 2 && !STOPWORDS.has(w));
 }
 function preprocess(q) {
+  // Return 3 tahap preprocessing untuk log UI: raw → no-stopword → stemmed
   const raw = cleanText(q).split(' ').filter(t => t.length > 1);
   const noSW = raw.filter(t => !STOPWORDS.has(t));
   const stemmed = noSW.map(stem);
@@ -251,72 +255,103 @@ function preprocess(q) {
 
 // ────────────────────────────────────────────────────────────────────────
 //  5. TF-IDF ENGINE — Log Frequency Weighting + IDF
+//     Formula: TF = 1 + log₁₀(freq), IDF = log₁₀(N/df), TF-IDF = TF × IDF
+//     Build: Vocab → DF → IDF → Inverted Index → TF-IDF Vectors → L2 Norm
 // ────────────────────────────────────────────────────────────────────────
 function buildEngine() {
-  const N = DOCS.length;
+  const N = DOCS.length; // Total dokumen = 50
+  
+  // Tokenize + stem semua dokumen
   const allToks = DOCS.map(d => tokenize(d.text).map(stem));
+  
+  // Buat vocabulary (semua term unik, sorted)
   const vocab = [...new Set(allToks.flat())].sort();
+  
+  // Hitung DF (Document Frequency) untuk setiap term
   const df = {};
   vocab.forEach(t => { df[t] = allToks.filter(toks => toks.includes(t)).length; });
+  
+  // Hitung IDF = log₁₀(N / df) untuk setiap term
   const idf = {};
   vocab.forEach(t => { idf[t] = df[t] > 0 ? Math.log10(N / df[t]) : 0; });
 
-  // Inverted Index
+  // Build Inverted Index: term → {df, postings:{docId:[pos1,pos2,...]}}
   const invIdx = {};
   allToks.forEach((toks, docId) => {
     toks.forEach((t, pos) => {
       if (!invIdx[t]) invIdx[t] = { df: 0, postings: {} };
       if (!invIdx[t].postings[docId]) { invIdx[t].postings[docId] = []; invIdx[t].df++; }
-      invIdx[t].postings[docId].push(pos);
+      invIdx[t].postings[docId].push(pos); // Simpan posisi term di dokumen
     });
   });
 
-  // TF-IDF vectors: w(t,d) = (1 + log10(tf)) * idf(t)
+  // Hitung TF-IDF untuk setiap dokumen: w(t,d) = (1 + log₁₀(tf)) × idf(t)
   const tfidf = allToks.map(toks => {
-    const freq = {};
+    const freq = {}; // Hitung frekuensi raw per term
     toks.forEach(t => freq[t] = (freq[t] || 0) + 1);
-    const vec = {};
-    vocab.forEach(t => { const c = freq[t] || 0; vec[t] = c > 0 ? (1 + Math.log10(c)) * idf[t] : 0; });
+    const vec = {}; // Vektor TF-IDF dokumen ini
+    vocab.forEach(t => { 
+      const c = freq[t] || 0; 
+      vec[t] = c > 0 ? (1 + Math.log10(c)) * idf[t] : 0; // Log frequency weighting
+    });
     return vec;
   });
 
-  // L2 Normalization
+  // L2 Normalization → Cosine Similarity (project ke unit sphere)
   function l2(v) {
-    const s = Math.sqrt(Object.values(v).reduce((a, x) => a + x * x, 0));
+    const s = Math.sqrt(Object.values(v).reduce((a, x) => a + x * x, 0)); // ||v||
     if (s === 0) return v;
     const n = {};
-    Object.keys(v).forEach(k => n[k] = v[k] / s);
+    Object.keys(v).forEach(k => n[k] = v[k] / s); // Normalisasi: v_i / ||v||
     return n;
   }
-  const tfidfN = tfidf.map(l2);
-  const docLen = allToks.map(t => t.length);
-  const sources = [...new Set(DOCS.map(d => d.src))];
+  const tfidfN = tfidf.map(l2); // Vektor ternormalisasi untuk semua dokumen
+  
+  const docLen = allToks.map(t => t.length); // Panjang dokumen (jumlah term)
+  const sources = [...new Set(DOCS.map(d => d.src))]; // Sumber jurnal unik
+  
   return { vocab, df, idf, invIdx, tfidf, tfidfN, allToks, docLen, N, sources };
 }
-const E = buildEngine();
+const E = buildEngine(); // Engine global, build sekali saat load
 
 // ────────────────────────────────────────────────────────────────────────
 //  6. SEARCH — Vector Space Model + Cosine Similarity
+//     Query jadi vektor TF-IDF → hitung Cosine Similarity dengan semua dok
+//     Ranking by score descending → return top-K
 // ────────────────────────────────────────────────────────────────────────
 function qvec(stemmed, norm = true) {
+  // Buat vektor TF-IDF untuk query
   const freq = {};
-  stemmed.forEach(t => freq[t] = (freq[t] || 0) + 1);
+  stemmed.forEach(t => freq[t] = (freq[t] || 0) + 1); // Hitung frekuensi term di query
   const vec = {};
-  E.vocab.forEach(t => { const c = freq[t] || 0; vec[t] = c > 0 ? (1 + Math.log10(c)) * E.idf[t] : 0; });
+  E.vocab.forEach(t => { 
+    const c = freq[t] || 0; 
+    vec[t] = c > 0 ? (1 + Math.log10(c)) * E.idf[t] : 0; // TF-IDF query
+  });
   if (norm) {
+    // L2 normalization jika pakai Cosine Similarity
     const s = Math.sqrt(Object.values(vec).reduce((a, x) => a + x * x, 0));
     if (s > 0) Object.keys(vec).forEach(k => vec[k] /= s);
   }
   return vec;
 }
-function dot(a, b) { let s = 0; Object.keys(a).forEach(t => { if (b[t]) s += a[t] * b[t]; }); return s; }
+
+function dot(a, b) { 
+  // Dot product antara 2 vektor (query · document)
+  let s = 0; 
+  Object.keys(a).forEach(t => { if (b[t]) s += a[t] * b[t]; }); 
+  return s; 
+}
+
 function search(stemmed, k = 10, norm = true) {
-  const qv = qvec(stemmed, norm);
-  const dm = norm ? E.tfidfN : E.tfidf;
-  return DOCS.map((d, i) => ({ i, score: dot(qv, dm[i]) }))
-    .filter(x => x.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, k);
+  // Main search function: query → results
+  const qv = qvec(stemmed, norm); // Vektor query
+  const dm = norm ? E.tfidfN : E.tfidf; // Pilih vektor dokumen (normalized atau raw)
+  
+  return DOCS.map((d, i) => ({ i, score: dot(qv, dm[i]) })) // Hitung similarity semua dok
+    .filter(x => x.score > 0) // Buang yang similarity = 0
+    .sort((a, b) => b.score - a.score) // Sort descending by score
+    .slice(0, k); // Ambil top-K hasil
 }
 
 // ────────────────────────────────────────────────────────────────────────
@@ -363,11 +398,13 @@ function doSearch() {
 }
 
 // ────────────────────────────────────────────────────────────────────────
-//  8. TAB BUILDERS
+//  8. TAB BUILDERS — Generate Konten untuk Tab-Tab Analisis
+//     Dipanggil saat DOMContentLoaded (build sekali saat page load)
 // ────────────────────────────────────────────────────────────────────────
 
-// ── Inverted Index Table ──
+// ── TAB: Inverted Index ──
 function buildIndexTable() {
+  // Tampilkan top 10 term dengan DF tertinggi
   const sorted = Object.entries(E.invIdx).sort((a, b) => b[1].df - a[1].df).slice(0, 10);
   const rows = sorted.map(([t, d]) => {
     const ids = Object.keys(d.postings).slice(0, 5).map(x => `D${+x+1}`).join(', ') + (Object.keys(d.postings).length > 5 ? ` +${Object.keys(d.postings).length-5}` : '');
@@ -377,7 +414,8 @@ function buildIndexTable() {
 }
 
 function searchIndex(term) {
-  const t = stem(term.toLowerCase().trim());
+  // Live search untuk detail term di Inverted Index tab
+  const t = stem(term.toLowerCase().trim()); // Stem dulu biar match dengan index
   const el = document.getElementById('idx-detail');
   if (!t || t.length < 2) { el.innerHTML = `<p style="font-size:0.7rem;color:#5c6d66;">Ketik kata di atas untuk melihat detail.</p>`; return; }
   const d = E.invIdx[t];
@@ -394,8 +432,9 @@ function searchIndex(term) {
   <table class="data-table"><thead><tr><th>Doc</th><th>TF Raw</th><th>TF Log</th><th>TF-IDF</th><th>Posisi</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
-// ── Analisis Bobot (Dinamis) ──
+// ── TAB: Analisis Bobot ──
 function buildBobotAnalysis() {
+  // Generate perbandingan IDF untuk 2 kata: "ekonomi" (umum) vs "fiskal" (langka)
   const t1 = 'ekonomi', t2 = 'fiskal';
   const df1 = E.invIdx[t1] ? E.invIdx[t1].df : 0, df2 = E.invIdx[t2] ? E.invIdx[t2].df : 0;
   const idf1 = E.idf[t1] || 0, idf2 = E.idf[t2] || 0;
@@ -469,11 +508,12 @@ function buildBobotAnalysis() {
     </div>`;
 }
 
-// ── Norm Comparison ──
+// ── TAB: Efek Normalisasi ──
 function buildNormComparison() {
+  // Bandingkan hasil pencarian dengan vs tanpa L2 normalization (Cosine Similarity)
   const q = 'kebijakan ekonomi hijau indonesia';
   const { stemmed } = preprocess(q);
-  const wN = search(stemmed, 8, true), woN = search(stemmed, 8, false);
+  const wN = search(stemmed, 8, true), woN = search(stemmed, 8, false); // norm=true vs false
   const maxB = woN[0]?.score || 1, maxG = wN[0]?.score || 1;
   const render = (res, cls, maxS) => res.map((r, i) => {
     const pct = (r.score / maxS * 100).toFixed(0);
